@@ -31,6 +31,8 @@ Model neuronowy: `neural_ml.ipynb`
 
 ## ETAP 4
 Zeszyt uruchomiono w środowisku Google Colab (należy wgrać plik `tagged_data.csv`
-do sesji). Niestety trening nie działa przez problemy podczas runtime.
-Plik: `language_model.ipynb`.
+do sesji). Niestety trening nie działa przez problemy podczas runtime więc zdecydowałem się
+na użycie gotowego modelu: `https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest`.
 W ostatniej komórce zaimplementowałem prosty klasyfikator z wykorzystaniem gotowego modelu.
+Plik: `language_model.ipynb`.
+
