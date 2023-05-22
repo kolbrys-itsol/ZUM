@@ -8,7 +8,6 @@ from sklearn.cluster import KMeans
 from time import time
 from gensim.models.phrases import Phrases, Phraser
 from gensim.models import Word2Vec, KeyedVectors
-from IPython.display import display
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
 
@@ -37,16 +36,16 @@ def replace_sentiment_words(word, sentiment_dict):
     return out
 
 
-
 data = pd.read_csv("clean_data.csv")
 data_prepared = data.dropna().drop_duplicates().reset_index(drop=True).rename(columns={'Tweets': 'tweets'})
 print(data.info)
 
 data_prepared.tweets = data.Tweets.apply(lambda x: to_word_list(x))
 data_prepared = data_prepared[data_prepared.tweets.str.len() > 1]
+data_prepared.reset_index(inplace=True)
 #
 sent = [row for row in data_prepared.tweets]
-phrases = Phrases(sent, min_count=1, progress_per=50000)
+phrases = Phrases(sent, min_count=1, progress_per=1000)
 bigrams = Phraser(phrases)
 sentences = bigrams[sent]
 print(sentences[1])
@@ -58,23 +57,40 @@ data_prepared_with_bigrams.tweets = data_prepared_with_bigrams.tweets.apply(lamb
 data_prepared_with_bigrams[["tweets"]].to_csv('prepared_data.csv', index=False)
 
 # k-means & word2vec
-# potrzebne jest pobranie gotowego modelu dla okna 5, 100d
-word_vectors = KeyedVectors.load_word2vec_format("enwiki_20180420_100d.txt")
+w2v = Word2Vec(min_count=5,
+               window=5,
+               vector_size=500,
+               sample=1e-5,
+               alpha=0.03,
+               min_alpha=0.0007,
+               negative=20,
+               workers=multiprocessing.cpu_count() - 1)
+w2v.build_vocab(sentences, progress_per=50000)
 
+w2v.train(sentences,
+          total_examples=w2v.corpus_count,
+          epochs=300,
+          report_delay=1)
+w2v.init_sims(replace=True)
+
+w2v.save('word2vec.model')
+
+wv = Word2Vec.load('word2vec.model').wv
 model = KMeans(n_clusters=2,
-               max_iter=1000,
+               max_iter=5000,
                random_state=True,
                n_init=50)
-model.fit(X=word_vectors.vectors.astype('double'))
+model.fit(X=wv.vectors.astype('double'))
 
-positive_cluster_center = model.cluster_centers_[1]
-negative_cluster_center = model.cluster_centers_[0]
+print(wv.similar_by_vector(model.cluster_centers_[1], topn=50, restrict_vocab=None))
+print(wv.similar_by_vector(model.cluster_centers_[0], topn=50, restrict_vocab=None))
 
-words = pd.DataFrame(word_vectors.index_to_key)
+words = pd.DataFrame(wv.index_to_key)
 words.columns = ['words']
-words['vectors'] = words.words.apply(lambda x: word_vectors[f'{x}'])
+words['vectors'] = words.words.apply(lambda x: wv[f'{x}'])
 words['cluster'] = words.vectors.apply(lambda x: model.predict([np.array(x)]))
 words.cluster = words.cluster.apply(lambda x: x[0])
+# words['cluster_value'] = [1 if i == 1 else 0 if i == 0 else -1 for i in words.cluster]
 words['cluster_value'] = [1 if i == 1 else -1 for i in words.cluster]
 words['closeness_score'] = words.apply(lambda x: 1 / (model.transform([x.vectors]).min()), axis=1)
 words['sentiment_coeff'] = words.closeness_score * words.cluster_value
@@ -146,5 +162,5 @@ replacement_df['sentiment_rate'] = replacement_df.apply(
     lambda x: np.array(x.loc['sentiment_coeff']) @ np.array(x.loc['tfidf_scores']), axis=1)
 replacement_df['prediction'] = (replacement_df.sentiment_rate > 0).astype('int8')
 
+print(replacement_df.groupby(['prediction']).count())
 replacement_df[["tweet", "sentiment_rate", "prediction"]].to_csv("tagged_data.csv")
-
