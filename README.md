@@ -1,7 +1,7 @@
 # ZUM NLP Project
 
 Dodatkowe potrzebne moduły są wypisane w poszczególnych modułach i zeszytach Jupiter.
-Żeby rozpocząć pracę całkowicie od nowa, należy usunąć wszystkie pliki `.csv` poza `tweets_dataset.csv`
+Żeby rozpocząć pracę całkowicie od nowa, należy usunąć wszystkie pliki `.csv` poza `tweets_dataset.csv` oraz zapisane modele.
 i uruchamiać moduły w kolejności przedstawionej poniżej:
 
 # Przebieg projektu:
